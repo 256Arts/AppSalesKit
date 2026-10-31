@@ -9,12 +9,17 @@ public struct AppDetailView<Reviews: View>: View {
 
     let app: AppPerformanceSummary
     let loader: SalesDataLoader
+    let aiCost: Double?
     let reviews: Reviews
 
-    /// - Parameter reviews: Sections after the analytics, such as `AppReviewsSection(account:appleID:)`.
-    public init(app: AppPerformanceSummary, loader: SalesDataLoader, @ViewBuilder reviews: () -> Reviews) {
+    /// - Parameters:
+    ///   - aiCost: What the host worked out building the app with AI cost over the same 30 days,
+    ///     shown with the profit it leaves. `nil` hides both.
+    ///   - reviews: Sections after the analytics, such as `AppReviewsSection(account:appleID:)`.
+    public init(app: AppPerformanceSummary, loader: SalesDataLoader, aiCost: Double? = nil, @ViewBuilder reviews: () -> Reviews) {
         self.app = app
         self.loader = loader
+        self.aiCost = aiCost
         self.reviews = reviews()
     }
 
@@ -103,6 +108,19 @@ public struct AppDetailView<Reviews: View>: View {
                         Text(NumberFormatter.currency.string(from: NSNumber(value: app.adProceeds)) ?? "")
                     } label: {
                         Label(String(localized: "Ad Earnings", bundle: #bundle), systemImage: "rectangle.stack.badge.play")
+                    }
+                }
+                if let aiCost {
+                    LabeledContent {
+                        Text(NumberFormatter.currency.string(from: NSNumber(value: aiCost)) ?? "")
+                    } label: {
+                        Label(String(localized: "AI Cost", bundle: #bundle), systemImage: "sparkles")
+                    }
+                    LabeledContent {
+                        Text(NumberFormatter.currency.string(from: NSNumber(value: app.proceeds - aiCost)) ?? "")
+                            .foregroundStyle(app.proceeds < aiCost ? .red : .primary)
+                    } label: {
+                        Label(String(localized: "Profit", bundle: #bundle), systemImage: "chart.line.uptrend.xyaxis")
                     }
                 }
                 LabeledContent {
@@ -288,8 +306,8 @@ private struct AnalyticsTotalsRows: View {
 }
 
 extension AppDetailView where Reviews == EmptyView {
-    public init(app: AppPerformanceSummary, loader: SalesDataLoader) {
-        self.init(app: app, loader: loader) { EmptyView() }
+    public init(app: AppPerformanceSummary, loader: SalesDataLoader, aiCost: Double? = nil) {
+        self.init(app: app, loader: loader, aiCost: aiCost) { EmptyView() }
     }
 }
 
