@@ -144,7 +144,6 @@ public struct SharePiesSection: View {
                 }
                 .scrollTargetBehavior(.viewAligned)
                 .scrollIndicators(.hidden)
-                .scrollBounceBehavior(.basedOnSize, axes: .vertical)
                 .contentMargins(.horizontal, 20, for: .scrollContent)
                 .contentMargins(.vertical, 16, for: .scrollContent)
                 .listRowInsets(EdgeInsets())
