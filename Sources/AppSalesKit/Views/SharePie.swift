@@ -146,11 +146,47 @@ public struct SharePiesSection: View {
                 .scrollIndicators(.hidden)
                 .contentMargins(.horizontal, 20, for: .scrollContent)
                 .contentMargins(.vertical, 16, for: .scrollContent)
+                #if os(macOS)
+                .background(PassVerticalScrollToParent())
+                #endif
                 .listRowInsets(EdgeInsets())
             }
         }
     }
 }
+
+#if os(macOS)
+import AppKit
+
+/// A horizontal `ScrollView` on the Mac swallows vertical wheel and trackpad events over it, so the
+/// page stops scrolling while the pointer is on the row. Hands mostly-vertical events to the
+/// enclosing scroll view instead.
+private struct PassVerticalScrollToParent: NSViewRepresentable {
+    final class Coordinator {
+        var monitor: Any?
+        deinit { monitor.map(NSEvent.removeMonitor) }
+    }
+
+    func makeCoordinator() -> Coordinator { Coordinator() }
+
+    func makeNSView(context: Context) -> NSView {
+        let view = NSView()
+        context.coordinator.monitor = NSEvent.addLocalMonitorForEvents(matching: .scrollWheel) { [weak view] event in
+            guard let view,
+                  event.window === view.window,
+                  abs(event.scrollingDeltaY) > abs(event.scrollingDeltaX),
+                  view.bounds.contains(view.convert(event.locationInWindow, from: nil)),
+                  let parent = view.enclosingScrollView
+            else { return event }
+            parent.scrollWheel(with: event)
+            return nil
+        }
+        return view
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {}
+}
+#endif
 
 extension SharePiesSection {
     /// Each card's share of the row's width, up to `maxCardWidth`, where they all fit at
