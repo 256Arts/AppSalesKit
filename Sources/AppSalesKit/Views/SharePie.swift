@@ -477,14 +477,15 @@ extension AppStoreAnalytics {
     public func activeDevicesByOS(filteredApps: [ACApp] = []) -> [PieShare] {
         let totals = filteredApps.isEmpty ? [totals()] : filteredApps.map { totals(for: $0.appleID) }
         let byOS = totals.reduce(into: [Int: Int]()) { $0.merge($1.averageDailyActiveDevicesByOS, uniquingKeysWith: +) }
-        let colors: [Color] = [.blue, .indigo, .purple, .teal, .mint]
+        // Newest release green, then yellow, orange, and red for everything older.
+        let colors: [Color] = [.green, .yellow, .orange, .red]
         let releases = byOS.keys.filter { $0 > 0 }.sorted(by: >)
         let shares = byOS.filter { $0.value > 0 }.map { os, devices in
             if os == 0 {
                 return PieShare(name: String(localized: "Earlier", bundle: #bundle), badge: .symbol("clock.arrow.circlepath"), color: .gray, value: Double(devices))
             }
             let rank = releases.firstIndex(of: os) ?? 0
-            return PieShare(name: String(localized: "OS \(os)", bundle: #bundle), badge: .symbol("\(os).circle.fill"), color: colors[rank % colors.count], value: Double(devices))
+            return PieShare(name: String(localized: "OS \(os)", bundle: #bundle), badge: .symbol("\(os).circle.fill"), color: colors[min(rank, colors.count - 1)], value: Double(devices))
         }
         return shares.slices(foldingInto: PieShare(name: String(localized: "Earlier", bundle: #bundle), badge: .symbol("clock.arrow.circlepath"), color: .gray, value: 0))
     }
