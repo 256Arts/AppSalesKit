@@ -25,21 +25,37 @@ public struct DownloadsAndProceedsChart: View {
         public let downloads: Double
         public let proceeds: Double
         public let activeDevices: Double
+        /// The change on the window before, `nil` without one to compare against.
+        public let downloadsChange: Double?
+        public let proceedsChange: Double?
     }
 
     private var rows: [Row] {
         let shown = apps.count == Self.limit + 1 ? apps.count : Self.limit
         var rows = apps.prefix(shown).map { app in
-            Row(id: app.appleID, app: app, downloads: Double(app.downloads), proceeds: app.proceeds, activeDevices: Double(activeDevices?[app.appleID] ?? 0))
+            Row(
+                id: app.appleID,
+                app: app,
+                downloads: Double(app.downloads),
+                proceeds: app.proceeds,
+                activeDevices: Double(activeDevices?[app.appleID] ?? 0),
+                downloadsChange: app.downloadsPercentageChange,
+                proceedsChange: app.proceedsPercentageChange)
         }
         let rest = apps.dropFirst(shown)
         if !rest.isEmpty {
+            let downloads = Double(rest.reduce(0) { $0 + $1.downloads })
+            let proceeds = rest.reduce(0) { $0 + $1.proceeds }
+            let prevDownloads = rest.allSatisfy { $0.prevDownloads != nil } ? Double(rest.reduce(0) { $0 + ($1.prevDownloads ?? 0) }) : nil
+            let prevProceeds = rest.allSatisfy { $0.prevProceeds != nil } ? rest.reduce(0) { $0 + ($1.prevProceeds ?? 0) } : nil
             rows.append(Row(
                 id: "Other",
                 app: nil,
-                downloads: Double(rest.reduce(0) { $0 + $1.downloads }),
-                proceeds: rest.reduce(0) { $0 + $1.proceeds },
-                activeDevices: Double(rest.reduce(0) { $0 + (activeDevices?[$1.appleID] ?? 0) })))
+                downloads: downloads,
+                proceeds: proceeds,
+                activeDevices: Double(rest.reduce(0) { $0 + (activeDevices?[$1.appleID] ?? 0) }),
+                downloadsChange: prevDownloads.map { PerformanceSummary.percentageChange(from: $0, to: downloads) },
+                proceedsChange: prevProceeds.map { PerformanceSummary.percentageChange(from: $0, to: proceeds) }))
         }
         return rows
     }
@@ -48,10 +64,11 @@ public struct DownloadsAndProceedsChart: View {
         let rows = rows
         Chart {
             ForEach(rows) { row in
-                bar(for: row, series: "Downloads", value: row.downloads)
-                bar(for: row, series: "Proceeds", value: row.proceeds)
+                bar(for: row, series: "Downloads", value: row.downloads, change: row.downloadsChange)
+                bar(for: row, series: "Proceeds", value: row.proceeds, change: row.proceedsChange)
                 if activeDevices != nil {
-                    bar(for: row, series: "Daily Active Devices", value: row.activeDevices)
+                    // The analytics reports carry no earlier window, so these bars go without an arrow.
+                    bar(for: row, series: "Daily Active Devices", value: row.activeDevices, change: nil)
                 }
             }
         }
@@ -107,10 +124,21 @@ public struct DownloadsAndProceedsChart: View {
         }
     }
 
-    private func bar(for row: Row, series: String, value: Double) -> some ChartContent {
+    /// A bar with an arrow past its end, green up and red down, for its change on the window
+    /// before — none when it held level or has nothing to compare against.
+    private func bar(for row: Row, series: String, value: Double, change: Double?) -> some ChartContent {
         BarMark(x: .value(series, value), y: .value(String(localized: "App", bundle: #bundle), row.id))
             .foregroundStyle(by: .value(String(localized: "Data Type", bundle: #bundle), series))
             .position(by: .value(String(localized: "Data Type", bundle: #bundle), series))
+            .annotation(position: .trailing, alignment: .leading, spacing: 2, overflowResolution: .init(x: .fit(to: .chart), y: .disabled)) {
+                if let change, change != 0 {
+                    Image(systemName: change < 0 ? "arrow.down.forward" : "arrow.up.forward")
+                        .font(.caption2.weight(.bold))
+                        .imageScale(.small)
+                        .foregroundStyle(change < 0 ? Color.red : Color.green)
+                        .accessibilityLabel(change < 0 ? Text("Down", bundle: #bundle) : Text("Up", bundle: #bundle))
+                }
+            }
     }
 }
 #endif

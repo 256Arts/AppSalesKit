@@ -151,7 +151,7 @@ public struct ACData: Codable {
             prevProceeds: getTotal(for: .proceeds, in: previousRange),
             adProceeds: getAdTotal(in: range),
             prevAdProceeds: getAdTotal(in: previousRange),
-            apps: getAppSummaries(in: range))
+            apps: getAppSummaries(in: range, comparedWith: previousRange))
     }
     
     /// The AdMob earnings within `getTotal(for: .proceeds, …)`, in the display currency.
@@ -166,8 +166,9 @@ public struct ACData: Codable {
         getAppSummaries(in: ACData.date(daysAgo: 30)..<Date.now)
     }
 
-    /// Every app on the App Store's downloads and proceeds over a window, best-selling first.
-    public func getAppSummaries(in range: Range<Date>) -> [AppPerformanceSummary] {
+    /// Every app on the App Store's downloads and proceeds over a window, best-selling first, with
+    /// each app's figures over `previousRange` alongside when one is given.
+    public func getAppSummaries(in range: Range<Date>, comparedWith previousRange: Range<Date>? = nil) -> [AppPerformanceSummary] {
         apps
             .filter { $0.iconURL100 != nil }
             .map { app in
@@ -178,7 +179,9 @@ public struct ACData: Codable {
                     downloads: Int(getTotal(for: .downloads, in: range, filteredApps: [app])),
                     proceeds: getTotal(for: .proceeds, in: range, filteredApps: [app]),
                     adProceeds: getAdTotal(in: range, filteredApps: [app]),
-                    price: app.price)
+                    price: app.price,
+                    prevDownloads: previousRange.map { Int(getTotal(for: .downloads, in: $0, filteredApps: [app])) },
+                    prevProceeds: previousRange.map { getTotal(for: .proceeds, in: $0, filteredApps: [app]) })
             }
             .sorted(by: { $0.downloads > $1.downloads })
     }

@@ -44,6 +44,16 @@ public struct AppPerformanceSummary: Identifiable {
     /// The part of `proceeds` that is AdMob earnings.
     public let adProceeds: Double
     public let price: Double
+    /// The same figures over the window compared against; `nil` when the summary has none.
+    public var prevDownloads: Int?
+    public var prevProceeds: Double?
+
+    public var downloadsPercentageChange: Double? {
+        prevDownloads.map { PerformanceSummary.percentageChange(from: Double($0), to: Double(downloads)) }
+    }
+    public var proceedsPercentageChange: Double? {
+        prevProceeds.map { PerformanceSummary.percentageChange(from: $0, to: proceeds) }
+    }
 
     public var url: URL {
         URL(string: "https://apps.apple.com/app/id" + appleID) ?? URL(filePath: "/")
