@@ -132,8 +132,8 @@ public struct DownloadsAndProceedsChart: View {
             .position(by: .value(String(localized: "Data Type", bundle: #bundle), series))
             .annotation(position: .trailing, alignment: .leading, spacing: 2, overflowResolution: .init(x: .fit(to: .chart), y: .disabled)) {
                 if let change, change != 0 {
-                    Image(systemName: change < 0 ? "arrow.down.forward" : "arrow.up.forward")
-                        .font(.caption2.weight(.bold))
+                    Image(systemName: change < 0 ? "arrowtriangle.backward.fill" : "arrowtriangle.forward.fill")
+                        .font(.caption2)
                         .imageScale(.small)
                         .foregroundStyle(change < 0 ? Color.red : Color.green)
                         .accessibilityLabel(change < 0 ? Text("Down", bundle: #bundle) : Text("Up", bundle: #bundle))
