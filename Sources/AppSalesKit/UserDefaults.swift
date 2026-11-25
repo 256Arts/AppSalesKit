@@ -10,6 +10,8 @@ extension UserDefaults {
         public static let appListHiddenStats = "appListHiddenStats"
         public static let homeChartSort = "homeChartSort"
         public static let homeChartShowsActiveDevices = "homeChartShowsActiveDevices"
+        /// Whether the sidebar lists the Google Analytics websites, with their own summary.
+        public static let showsWebsites = "showsWebsites"
     }
 
 }

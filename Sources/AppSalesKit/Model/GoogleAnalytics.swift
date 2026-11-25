@@ -2,7 +2,7 @@ import Foundation
 import KeychainAccess
 
 /// A Google Analytics 4 property: one website's worth of traffic.
-public struct GoogleAnalyticsProperty: Codable, Hashable, Identifiable {
+public struct GoogleAnalyticsProperty: Codable, Hashable, Identifiable, Sendable {
     /// `properties/123456789`, the form the Data API addresses it by.
     public let id: String
     public let name: String
@@ -55,6 +55,10 @@ public final class GoogleAnalytics {
     /// Every chosen website, across all sign-ins.
     public var websites: [GoogleAnalyticsProperty] { stored.connections.flatMap(\.websites) }
     public var pageURLs: [String: URL] { stored.pageURLs }
+    /// Every chosen website with the sign-in that reads it.
+    var connectedWebsites: [(account: GoogleAccount, property: GoogleAnalyticsProperty)] {
+        stored.connections.flatMap { connection in connection.websites.map { (connection.account, $0) } }
+    }
 
     private static let keychain = Keychain(service: AppSalesKit.keychainService)
         .synchronizable(true)
@@ -164,7 +168,7 @@ public final class GoogleAnalytics {
     /// for Sprite Pencil. Apps with no page are left out. A website that cannot be read is skipped,
     /// unless none can.
     public func traffic(for apps: [(appleID: String, name: String)]) async throws -> [String: WebPageTraffic] {
-        let reports = stored.connections.flatMap { connection in connection.websites.map { (connection.account, $0) } }
+        let reports = connectedWebsites
         guard !reports.isEmpty else { throw GoogleSignInError.notConnected(service: Self.service) }
 
         var pages: [WebPage: Int] = [:]
@@ -285,7 +289,7 @@ public final class GoogleAnalytics {
         }
     }
 
-    private func send<T: Decodable>(_ request: URLRequest, as account: GoogleAccount) async throws -> T {
+    func send<T: Decodable>(_ request: URLRequest, as account: GoogleAccount) async throws -> T {
         do {
             return try await tokens.send(request, as: account)
         } catch GoogleSignInError.signInExpired {

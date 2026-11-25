@@ -146,6 +146,60 @@ public final class SalesDataLoader {
         }
     }
 
+    // MARK: Website Reports
+
+    /// Each chosen website's report, in the order they were chosen; empty until they load, and while
+    /// the reader has the websites hidden.
+    public private(set) var websiteReports: [WebsiteReport] = []
+    public private(set) var isLoadingWebsiteReports = false
+    /// Why no report could be read, while there are none to show.
+    public private(set) var websiteReportsError: Error?
+    private var websiteReportsLoad: (query: WebsiteReportsQuery, date: Date)?
+
+    /// What the website reports depend on, so they reload when a website is chosen or the reader refreshes.
+    struct WebsiteReportsQuery: Equatable {
+        let isEnabled: Bool
+        let websites: [GoogleAnalyticsProperty]
+        let refreshCount: Int
+    }
+
+    func websiteReportsQuery(isEnabled: Bool) -> WebsiteReportsQuery {
+        WebsiteReportsQuery(isEnabled: isEnabled, websites: GoogleAnalytics.shared.websites, refreshCount: refreshCount)
+    }
+
+    public func websiteReport(id: GoogleAnalyticsProperty.ID) -> WebsiteReport? {
+        websiteReports.first { $0.id == id }
+    }
+
+    /// - Parameter isEnabled: Whether the reader shows the websites; off drops the reports.
+    public func loadWebsiteReports(isEnabled: Bool) async {
+        let query = websiteReportsQuery(isEnabled: isEnabled)
+        guard isEnabled, GoogleSignIn.isAvailable, !query.websites.isEmpty else {
+            websiteReports = []
+            websiteReportsError = nil
+            websiteReportsLoad = nil
+            return
+        }
+        // Coming back to the window reruns the task; Google's figures barely move in five minutes.
+        if let websiteReportsLoad, websiteReportsLoad.query == query, websiteReportsLoad.date.timeIntervalSinceNow > -5 * 60 { return }
+
+        isLoadingWebsiteReports = true
+        defer { isLoadingWebsiteReports = false }
+        do {
+            let reports = try await GoogleAnalytics.shared.websiteReports()
+            websiteReports = reports
+            websiteReportsError = nil
+            websiteReportsLoad = (query, .now)
+        } catch is CancellationError {
+        } catch let err as URLError where err.code == .cancelled {
+        } catch {
+            // A failed refresh keeps the last figures.
+            if websiteReports.isEmpty {
+                websiteReportsError = error
+            }
+        }
+    }
+
     // MARK: Figures
 
     /// The figures of each `sortsByCounts` sort, keyed by Apple ID. A sort is missing until it
@@ -210,7 +264,9 @@ extension View {
     /// Keeps `loader` fetching `account`'s sales — on appear, when the account changes, and back in
     /// the foreground — then its App Store analytics and webpage views once the sales are in. Put it
     /// once on whatever holds the sections reading from `loader`.
-    public func loadsSales(_ loader: SalesDataLoader, account: Account?) -> some View {
+    ///
+    /// - Parameter showsWebsites: Whether to also keep the Google Analytics website reports loaded.
+    public func loadsSales(_ loader: SalesDataLoader, account: Account?, showsWebsites: Bool = false) -> some View {
         self
             .task(id: account) {
                 await loader.load(account: account, useMemoization: true)
@@ -220,6 +276,9 @@ extension View {
             }
             .task(id: loader.websiteTrafficQuery) {
                 await loader.loadWebsiteTraffic()
+            }
+            .task(id: loader.websiteReportsQuery(isEnabled: showsWebsites)) {
+                await loader.loadWebsiteReports(isEnabled: showsWebsites)
             }
             #if canImport(UIKit) && !os(watchOS)
             .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in

@@ -124,7 +124,20 @@ public struct SharePiesSection: View {
     }
 
     public var body: some View {
-        let cards = cards
+        SharePieRow(cards: cards)
+    }
+}
+
+/// Pie cards in one horizontally scrolling section, as many abreast as fit. Nothing without cards.
+public struct SharePieRow: View {
+
+    public let cards: [SharePieCard]
+
+    public init(cards: [SharePieCard]) {
+        self.cards = cards
+    }
+
+    public var body: some View {
         if !cards.isEmpty {
             Section {
                 ScrollView(.horizontal) {
@@ -188,7 +201,7 @@ private struct PassVerticalScrollToParent: NSViewRepresentable {
 }
 #endif
 
-extension SharePiesSection {
+extension SharePieRow {
     /// Each card's share of the row's width, up to `maxCardWidth`, where they all fit at
     /// `minCardWidth` or wider, else as many as fit at `minCardWidth` or a little wider, with
     /// `peek` of the next to show the row scrolls. `length` is already inside the content margins.

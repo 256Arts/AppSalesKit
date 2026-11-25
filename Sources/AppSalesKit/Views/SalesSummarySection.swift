@@ -283,7 +283,7 @@ extension InsightsView {
 
 /// One figure above the summary's chart: its icon in the colour of its bars, and beneath it
 /// the change from the 30 days before, or a caption for a figure with nothing to compare against.
-private struct SummaryStat: View {
+struct SummaryStat: View {
 
     /// What VoiceOver reads for the icon.
     let name: LocalizedStringKey
