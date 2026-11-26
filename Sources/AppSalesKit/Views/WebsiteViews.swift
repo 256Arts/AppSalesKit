@@ -4,20 +4,17 @@ import Charts
 
 // MARK: Setting
 
-/// Shows the Google Analytics websites in the sidebar, each with its own page beneath a summary of
-/// them all. Nothing until a website is chosen in Accounts.
+/// Shows the websites in the sidebar, each with its own page beneath a summary of them all. Offer
+/// it only while `SalesDataLoader.websites` has some.
 public struct ShowWebsitesToggle: View {
 
     public init() {}
 
     @AppStorage(UserDefaults.Key.showsWebsites, store: UserDefaults.shared) private var showsWebsites = false
-    @State private var googleAnalytics = GoogleAnalytics.shared
 
     public var body: some View {
-        if GoogleSignIn.isAvailable, !googleAnalytics.websites.isEmpty {
-            Toggle(isOn: $showsWebsites) {
-                Label(String(localized: "Show Websites", bundle: #bundle), systemImage: "globe")
-            }
+        Toggle(isOn: $showsWebsites) {
+            Label(String(localized: "Show Websites", bundle: #bundle), systemImage: "globe")
         }
     }
 }
@@ -35,8 +32,10 @@ public struct WebsiteIcon: View {
         self.length = length
     }
 
+    /// None for the demo's reserved `.example` hosts, which have no icon to find.
     private var faviconURL: URL? {
-        host.flatMap { URL(string: "https://www.google.com/s2/favicons?domain=\($0)&sz=128") }
+        guard let host, !host.hasSuffix(".example") else { return nil }
+        return URL(string: "https://www.google.com/s2/favicons?domain=\(host)&sz=128")
     }
 
     public var body: some View {
@@ -86,7 +85,7 @@ public struct WebsiteRow: View {
 
                 if let report {
                     HStack(spacing: 8) {
-                        Label(report.totals.views.formatted(), systemImage: AppListSort.websiteViews.systemImage)
+                        Label(report.totals.views.formatted(), systemImage: WebsiteReport.viewsSymbol)
                             .labelStyle(TightLabelStyle())
                             .accessibilityLabel(Text("\(report.totals.views) views in the last 30 days", bundle: #bundle))
                         if let change = report.viewsChange {
@@ -135,17 +134,19 @@ public struct WebsiteSummarySection: View {
                     SummaryStat(
                         name: "Views",
                         value: views.formatted(),
-                        systemImage: AppListSort.websiteViews.systemImage,
+                        systemImage: WebsiteReport.viewsSymbol,
                         color: .teal,
                         isLarge: isWide,
-                        change: change(previousViews, views))
+                        change: change(previousViews, views),
+                        showsName: true)
                     SummaryStat(
                         name: "Users",
                         value: users.formatted(),
                         systemImage: "person.2",
                         color: .indigo,
                         isLarge: isWide,
-                        change: change(previousUsers, users))
+                        change: change(previousUsers, users),
+                        showsName: true)
                     Spacer(minLength: 0)
                 }
 
@@ -291,7 +292,7 @@ public struct WebsiteDetailView: View {
                     .frame(height: 180)
                     .padding(.vertical, 4)
 
-                figure(String(localized: "Views", bundle: #bundle), systemImage: AppListSort.websiteViews.systemImage, value: report.totals.views, change: report.viewsChange)
+                figure(String(localized: "Views", bundle: #bundle), systemImage: WebsiteReport.viewsSymbol, value: report.totals.views, change: report.viewsChange)
                 figure(String(localized: "Users", bundle: #bundle), systemImage: "person.2", value: report.totals.users, change: report.usersChange)
                 figure(String(localized: "Sessions", bundle: #bundle), systemImage: "hand.tap", value: report.totals.sessions, change: nil)
             } header: {
@@ -442,7 +443,7 @@ extension WebsiteReport {
             channels[key] = channels[key] ?? source.channel
         }
         return sessions
-            .map { SourceRow(name: $0.key.name, medium: $0.key.medium, channel: channels[$0.key] ?? .other, sessions: $0.value) }
+            .map { SourceRow(name: $0.key.name, medium: $0.key.medium, channel: channels[$0.key] ?? .unassigned, sessions: $0.value) }
             .sorted { $0.sessions > $1.sessions }
     }
 }
@@ -450,45 +451,33 @@ extension WebsiteReport {
 // MARK: Shares
 
 extension WebsiteChannel {
-    public var name: String {
-        switch self {
-        case .direct: String(localized: "Direct", bundle: #bundle)
-        case .google: String(localized: "Google", bundle: #bundle)
-        case .otherSearch: String(localized: "Other Search", bundle: #bundle)
-        case .ai: String(localized: "AI", bundle: #bundle)
-        case .social: String(localized: "Social", bundle: #bundle)
-        case .referral: String(localized: "Other Websites", bundle: #bundle)
-        case .email: String(localized: "Email", bundle: #bundle)
-        case .paid: String(localized: "Ads", bundle: #bundle)
-        case .other: String(localized: "Other", bundle: #bundle)
-        }
-    }
-
     public var symbol: String {
-        switch self {
-        case .direct: "link"
-        case .google: "g.circle.fill"
-        case .otherSearch: "magnifyingglass"
-        case .ai: "sparkles"
-        case .social: "bubble.left.and.bubble.right.fill"
-        case .referral: "arrowshape.turn.up.right.fill"
-        case .email: "envelope.fill"
-        case .paid: "megaphone.fill"
-        case .other: "questionmark"
+        switch name {
+        case "Direct": "link"
+        case "Organic Search": "magnifyingglass"
+        case "AI Assistant": "sparkles"
+        case "Organic Social": "bubble.left.and.bubble.right.fill"
+        case "Organic Video": "play.rectangle.fill"
+        case "Organic Shopping": "bag.fill"
+        case "Referral": "arrowshape.turn.up.right.fill"
+        case "Email": "envelope.fill"
+        case "Unassigned": "questionmark"
+        default: name.hasPrefix("Paid") || ["Display", "Cross-network", "Affiliates"].contains(name) ? "megaphone.fill" : "ellipsis"
         }
     }
 
     public var color: Color {
-        switch self {
-        case .direct: .blue
-        case .google: .red
-        case .otherSearch: .orange
-        case .ai: .purple
-        case .social: .pink
-        case .referral: .teal
-        case .email: .yellow
-        case .paid: .green
-        case .other: .gray
+        switch name {
+        case "Direct": .blue
+        case "Organic Search": .green
+        case "AI Assistant": .purple
+        case "Organic Social": .pink
+        case "Organic Video": .red
+        case "Organic Shopping": .mint
+        case "Referral": .teal
+        case "Email": .yellow
+        case "Unassigned": .gray
+        default: name.hasPrefix("Paid") || ["Display", "Cross-network", "Affiliates"].contains(name) ? .orange : .gray
         }
     }
 }
@@ -566,7 +555,7 @@ extension [WebsiteReport] {
         return byChannel
             .filter { $0.value > 0 }
             .map { PieShare(name: $0.key.name, badge: .symbol($0.key.symbol), color: $0.key.color, value: Double($0.value)) }
-            .slices(foldingInto: PieShare(name: WebsiteChannel.other.name, badge: .symbol(WebsiteChannel.other.symbol), color: WebsiteChannel.other.color, value: 0))
+            .slices(foldingInto: PieShare(name: String(localized: "Other", bundle: #bundle), badge: .symbol("ellipsis"), color: .gray, value: 0))
     }
 }
 

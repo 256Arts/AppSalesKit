@@ -156,7 +156,17 @@ public final class SalesDataLoader {
     public private(set) var websiteReportsError: Error?
     private var websiteReportsLoad: (query: WebsiteReportsQuery, date: Date)?
 
-    /// What the website reports depend on, so they reload when a website is chosen or the reader refreshes.
+    /// The websites to list: the demo's made-up ones with the demo account, else those chosen in
+    /// Google Analytics. Empty without any, which is when a host should not offer to show them.
+    public var websites: [GoogleAnalyticsProperty] {
+        if account?.isDemo == true {
+            return WebsiteReport.examples.map(\.property)
+        }
+        return GoogleSignIn.isAvailable ? GoogleAnalytics.shared.websites : []
+    }
+
+    /// What the website reports depend on, so they reload when a website is chosen, the account
+    /// changes to or from the demo, or the reader refreshes.
     struct WebsiteReportsQuery: Equatable {
         let isEnabled: Bool
         let websites: [GoogleAnalyticsProperty]
@@ -164,7 +174,7 @@ public final class SalesDataLoader {
     }
 
     func websiteReportsQuery(isEnabled: Bool) -> WebsiteReportsQuery {
-        WebsiteReportsQuery(isEnabled: isEnabled, websites: GoogleAnalytics.shared.websites, refreshCount: refreshCount)
+        WebsiteReportsQuery(isEnabled: isEnabled, websites: websites, refreshCount: refreshCount)
     }
 
     public func websiteReport(id: GoogleAnalyticsProperty.ID) -> WebsiteReport? {
@@ -174,8 +184,14 @@ public final class SalesDataLoader {
     /// - Parameter isEnabled: Whether the reader shows the websites; off drops the reports.
     public func loadWebsiteReports(isEnabled: Bool) async {
         let query = websiteReportsQuery(isEnabled: isEnabled)
-        guard isEnabled, GoogleSignIn.isAvailable, !query.websites.isEmpty else {
+        guard isEnabled, !query.websites.isEmpty else {
             websiteReports = []
+            websiteReportsError = nil
+            websiteReportsLoad = nil
+            return
+        }
+        if account?.isDemo == true {
+            websiteReports = WebsiteReport.examples
             websiteReportsError = nil
             websiteReportsLoad = nil
             return

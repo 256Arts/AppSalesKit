@@ -22,7 +22,15 @@ public struct WebsiteReport: Identifiable, Hashable, Sendable {
 
     public var id: String { property.id }
     public var name: String { property.name }
-    public var url: URL? { host.flatMap { URL(string: "https://" + $0) } }
+    /// None for the demo's reserved `.example` hosts.
+    public var url: URL? {
+        guard let host, !host.hasSuffix(".example") else { return nil }
+        return URL(string: "https://" + host)
+    }
+
+    /// Page views' symbol on every website screen. Not the globe, which elsewhere stands for a
+    /// website as a whole.
+    public static let viewsSymbol = "eye"
 
     public struct Totals: Hashable, Sendable {
         public var views = 0
@@ -63,42 +71,19 @@ public struct WebsiteReport: Identifiable, Hashable, Sendable {
     }
 }
 
-/// How a visit reached a website, coarser than Google's default channel groups and with the
-/// two a small developer asks about first — Google and AI assistants — pulled out on their own.
-public enum WebsiteChannel: CaseIterable, Sendable {
-    case direct
-    case google
-    case otherSearch
-    case ai
-    case social
-    case referral
-    case email
-    case paid
-    case other
+/// How a visit reached a website: one of Google Analytics' default channel groups — Direct,
+/// Organic Search, AI Assistant, Referral, and so on — named as Google names it, so the figures
+/// match its own reports.
+public struct WebsiteChannel: Hashable, Sendable {
+    public let name: String
 
-    /// Assistants send their visitors as plain referrals, so they are told apart by source.
-    private static let aiSources = /chatgpt|openai|perplexity|claude\.ai|anthropic|gemini|bard\.google|copilot|deepseek|meta\.ai|grok|mistral|phind|you\.com|poe\.com/
-
-    public init(source: String, medium: String, defaultChannelGroup group: String) {
-        let source = source.lowercased()
-        if group == "AI Assistant" || medium == "ai-assistant" || source.contains(Self.aiSources) {
-            self = .ai
-        } else if group == "Direct" {
-            self = .direct
-        } else if group.hasPrefix("Paid") || ["Display", "Cross-network", "Affiliates"].contains(group) {
-            self = .paid
-        } else if group == "Organic Search" || group == "Organic Shopping" {
-            self = source.contains("google") ? .google : .otherSearch
-        } else if group == "Organic Social" || group == "Organic Video" {
-            self = .social
-        } else if group == "Referral" {
-            self = .referral
-        } else if group == "Email" {
-            self = .email
-        } else {
-            self = .other
-        }
+    /// - Parameter defaultChannelGroup: The `sessionDefaultChannelGroup` Google reported; empty or
+    ///   `(not set)` is Unassigned, as Google shows it.
+    public init(defaultChannelGroup group: String) {
+        self.name = group.isEmpty || group == "(not set)" ? "Unassigned" : group
     }
+
+    public static let unassigned = WebsiteChannel(defaultChannelGroup: "Unassigned")
 }
 
 // MARK: Reading
@@ -181,7 +166,7 @@ extension GoogleAnalytics {
             WebsiteReport.Source(
                 source: row.dimension(0),
                 medium: row.dimension(1),
-                channel: WebsiteChannel(source: row.dimension(0), medium: row.dimension(1), defaultChannelGroup: row.dimension(2)),
+                channel: WebsiteChannel(defaultChannelGroup: row.dimension(2)),
                 sessions: row.metric(0))
         }
         let pages = reports[5].rows
