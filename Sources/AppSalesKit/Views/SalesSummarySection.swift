@@ -297,16 +297,9 @@ struct SummaryStat: View {
     var identifier = ""
     /// Shows `value` and `caption` as placeholders, the figure still on its way.
     var isLoading = false
-    /// Names the figure above it, for a legend whose icons alone do not say what they count.
-    var showsName = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
-            if showsName {
-                Text(name, bundle: #bundle)
-                    .font(isLarge ? .subheadline : .caption)
-                    .foregroundStyle(.secondary)
-            }
             HStack(spacing: 4) {
                 Image(systemName: systemImage)
                     .symbolVariant(.fill)

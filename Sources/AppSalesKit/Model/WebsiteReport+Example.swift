@@ -2,7 +2,7 @@ import Foundation
 
 extension WebsiteReport {
 
-    /// Three made-up websites for the demo account, to go with `ACData.example`. Built as day
+    /// Two made-up websites for the demo account, to go with `ACData.example`. Built as day
     /// offsets from today, like the sales, so they never go stale. Hosts are on the reserved
     /// `.example` domain, so nothing looks them up.
     public static let examples: [WebsiteReport] = [
@@ -45,22 +45,6 @@ extension WebsiteReport {
             pages: [
                 ("Forest Explorer — Hike Smarter", 1_020), ("Trail Maps", 480), ("Offline Mode", 260),
                 ("Pricing", 190), ("FAQ", 150), ("Changelog", 70),
-            ]),
-        example(
-            id: "properties/demo-blog", name: "Developer Blog", host: "blog.studio.example",
-            dailyViews: 32, growth: 0.86,
-            countries: ["US": 180, "DE": 60, "IN": 55, "GB": 40, "FR": 30, "BR": 20, "PL": 15],
-            operatingSystems: ["Macintosh": 210, "Windows": 90, "iOS": 70, "Linux": 40, "Android": 20],
-            sources: [
-                ("(direct)", "(none)", "Direct", 260),
-                ("news.ycombinator.com", "referral", "Referral", 190),
-                ("google", "organic", "Organic Search", 160),
-                ("claude.ai", "ai-assistant", "AI Assistant", 45),
-                ("bsky.app", "referral", "Organic Social", 40),
-            ],
-            pages: [
-                ("Shipping a Widget in a Weekend", 390), ("What I Learned From 1,000 Reviews", 260),
-                ("Building With Swift Charts", 170), ("Indie Pricing, One Year On", 90), ("Blog", 60),
             ]),
     ]
 

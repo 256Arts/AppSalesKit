@@ -88,9 +88,9 @@ public struct WebsiteRow: View {
                         Label(report.totals.views.formatted(), systemImage: WebsiteReport.viewsSymbol)
                             .labelStyle(TightLabelStyle())
                             .accessibilityLabel(Text("\(report.totals.views) views in the last 30 days", bundle: #bundle))
-                        if let change = report.viewsChange {
-                            PercentChange(change: change)
-                        }
+                        Label(report.totals.users.formatted(), systemImage: "person.2")
+                            .labelStyle(TightLabelStyle())
+                            .accessibilityLabel(Text("\(report.totals.users) users in the last 30 days", bundle: #bundle))
                     }
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
@@ -137,16 +137,14 @@ public struct WebsiteSummarySection: View {
                         systemImage: WebsiteReport.viewsSymbol,
                         color: .teal,
                         isLarge: isWide,
-                        change: change(previousViews, views),
-                        showsName: true)
+                        change: change(previousViews, views))
                     SummaryStat(
                         name: "Users",
                         value: users.formatted(),
                         systemImage: "person.2",
                         color: .indigo,
                         isLarge: isWide,
-                        change: change(previousUsers, users),
-                        showsName: true)
+                        change: change(previousUsers, users))
                     Spacer(minLength: 0)
                 }
 
@@ -164,21 +162,18 @@ public struct WebsiteSummarySection: View {
     }
 }
 
-/// Each website's views as a bar, its name above and an arrow past its end for the change on the
-/// 30 days before, as on the app summary's chart.
+/// Each website's views and users as a pair of bars, its name above and an arrow past each bar's
+/// end for its change on the 30 days before, as on the app summary's chart. The colours are the
+/// figures' above it, which stand in for the legend.
 private struct WebsiteViewsChart: View {
 
     let reports: [WebsiteReport]
 
     var body: some View {
+        let views = String(localized: "Views", bundle: #bundle)
+        let users = String(localized: "Users", bundle: #bundle)
         Chart(reports) { report in
-            BarMark(x: .value(String(localized: "Views", bundle: #bundle), report.totals.views),
-                    y: .value(String(localized: "Website", bundle: #bundle), report.id),
-                    height: .fixed(20))
-                .foregroundStyle(Color.teal)
-                .cornerRadius(4)
-                .accessibilityLabel(report.name)
-                .accessibilityValue(Text("\(report.totals.views) views", bundle: #bundle))
+            bar(for: report, series: views, value: report.totals.views, change: report.viewsChange)
                 .annotation(position: .top, alignment: .leading, spacing: 4) {
                     HStack(spacing: 6) {
                         WebsiteIcon(host: report.host, length: 16)
@@ -188,19 +183,31 @@ private struct WebsiteViewsChart: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 }
-                .annotation(position: .trailing, alignment: .leading, spacing: 2, overflowResolution: .init(x: .fit(to: .chart), y: .disabled)) {
-                    if let change = report.viewsChange, change != 0 {
-                        Image(systemName: change < 0 ? "arrowtriangle.backward.fill" : "arrowtriangle.forward.fill")
-                            .font(.caption2)
-                            .imageScale(.small)
-                            .foregroundStyle(change < 0 ? Color.red : Color.green)
-                            .accessibilityLabel(change < 0 ? Text("Down", bundle: #bundle) : Text("Up", bundle: #bundle))
-                    }
-                }
+            bar(for: report, series: users, value: report.totals.users, change: report.usersChange)
         }
+        .chartForegroundStyleScale([views: Color.teal, users: Color.indigo])
+        .chartLegend(.hidden)
         .chartYScale(domain: reports.map(\.id))
         .chartYAxis(.hidden)
-        .frame(height: CGFloat(reports.count) * 56 + 32)
+        .frame(height: CGFloat(reports.count) * 76 + 32)
+    }
+
+    private func bar(for report: WebsiteReport, series: String, value: Int, change: Double?) -> some ChartContent {
+        BarMark(x: .value(series, value), y: .value(String(localized: "Website", bundle: #bundle), report.id), height: .fixed(16))
+            .foregroundStyle(by: .value(String(localized: "Data Type", bundle: #bundle), series))
+            .position(by: .value(String(localized: "Data Type", bundle: #bundle), series))
+            .cornerRadius(4)
+            .accessibilityLabel(Text("\(report.name), \(series)", bundle: #bundle))
+            .accessibilityValue(Text(value, format: .number))
+            .annotation(position: .trailing, alignment: .leading, spacing: 2, overflowResolution: .init(x: .fit(to: .chart), y: .disabled)) {
+                if let change, change != 0 {
+                    Image(systemName: change < 0 ? "arrowtriangle.backward.fill" : "arrowtriangle.forward.fill")
+                        .font(.caption2)
+                        .imageScale(.small)
+                        .foregroundStyle(change < 0 ? Color.red : Color.green)
+                        .accessibilityLabel(change < 0 ? Text("Down", bundle: #bundle) : Text("Up", bundle: #bundle))
+                }
+            }
     }
 }
 
